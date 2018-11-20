@@ -13,3 +13,4 @@ def cut_string(s, n=20):
 	if len(s) > n:
 		return '...' + s[3 - n::]
 	return ' ' * (n - len(s)) + s
+	

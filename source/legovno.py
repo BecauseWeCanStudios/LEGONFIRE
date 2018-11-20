@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os
 import cv2
+import camera
 import skimage
 import argparse
 import numpy as np
@@ -51,11 +52,14 @@ def visualize_image(model, path):
 OPERATIONS = {
 	'train': lambda model, args: model.train(args.train_dataset, args.test_dataset, args.epochs, args.learning_rate),
 	'splash_image': lambda model, args: splash_image(model, args.input, args.output),
-	'splash_video': lambda model, args: splash_video(model, args.input, args.output)
+	'splash_video': lambda model, args: splash_video(model, args.input, args.output),
+	'visualize': lambda model, args: visualize_image(model, args.input),
+	'splash_camera': lambda model, args: camera.start(model, ['BG', '1x1', '1x2', '1x3'], (448, 448))
 }
 
 parser = argparse.ArgumentParser(description='Program ti die yourself')
-parser.add_argument('operation', metavar='OP', help='Operation to be executed', choices=('train', 'splash_image', 'splash_video', 'splash_camera', 'visualize'))
+parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
+	choices=('train', 'splash_image', 'splash_video', 'splash_camera', 'visualize'))
 parser.add_argument('-t', '--train_dataset', help='Path to train dataset', type=str)
 parser.add_argument('-v', '--test_dataset', help='Path to test dataset', type=str)
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
