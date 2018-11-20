@@ -24,13 +24,13 @@ def detect_and_splash(model, image):
 	return color_splash(image, result['masks'])
 
 def splash_image(model, path, output_path):
-	skimage.io.imsave(os.path.join(output_path, '{}_splash.png'.format(os.path.slitext(os.path.basename(path))[0])), 
+	skimage.io.imsave(os.path.join(output_path, '{}_splash.png'.format(os.path.splitext(os.path.basename(path))[0])), 
 		detect_and_splash(model, skimage.io.imread(path)))
 
 def splash_video(model, path, output_path):
 	vcapture = cv2.VideoCapture(path)
 	vwriter = cv2.VideoWriter(
-		os.path.join(output_path, '{}_splash.avi'.format(os.path.slitext(os.path.basename(path))[0])), 
+		os.path.join(output_path, '{}_splash.avi'.format(os.path.splitext(os.path.basename(path))[0])),
 		cv2.VideoWriter_fourcc(*'MJPG'),
 		vcapture.get(cv2.CAP_PROP_FPS), 
 		(int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(vcapture.get(cv2.CAP_PROP_FRAME_HEIGHT)))
@@ -72,7 +72,7 @@ args = parser.parse_args()
 
 if args.operation == 'train':
 	assert args.train_dataset, 'Argument --train_dataset is required for training'
-else:
+elif args.operation != 'splash_camera':
 	assert args.input, "Provide --input to apply color splash"
 
 model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)

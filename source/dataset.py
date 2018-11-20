@@ -7,6 +7,8 @@ from mrcnn import utils
 
 class Dataset(utils.Dataset):
 
+	NAME = 'LEGOVNO'
+
 	@staticmethod
 	def load_and_prepare(dir):
 		result = Dataset()
@@ -20,7 +22,7 @@ class Dataset(utils.Dataset):
 		for d in glob.iglob(directory):
 			if not os.path.isdir(d):
 				continue
-			self.add_class(TITLE, count, os.path.basename(d))
+			self.add_class(self.NAME, count, os.path.basename(d))
 			shuffled = glob.glob(os.path.join(d, '**/*.png'), recursive=True)
 			random.shuffle(shuffled)
 			globs.append((i for i in shuffled))
@@ -40,7 +42,8 @@ class Dataset(utils.Dataset):
 					mask = skimage.io.imread(mask_path).astype(bool)
 					read_masks[mask_path] = mask.reshape((*mask.shape, 1))
 				mask = read_masks[mask_path]
-				self.add_image(TITLE, image_id=id, path=path, image=img, mask=mask, class_ids=np.array([index + 1], dtype=np.int32))
+				self.add_image(self.NAME, image_id=id, path=path, image=img, mask=mask, 
+					class_ids=np.array([index + 1], dtype=np.int32))
 				id += 1
 			except StopIteration as e:
 				pass
@@ -49,19 +52,19 @@ class Dataset(utils.Dataset):
 
 	def load_mask(self, image_id):
 		image_info = self.image_info[image_id]
-		if image_info['source'] != TITLE:
+		if image_info['source'] != self.NAME:
 			return super(self.__class__, self).load_mask(image_id)
 		return image_info['mask'], image_info['class_ids']
 
 	def load_image(self, image_id):
 		image_info = self.image_info[image_id]
-		if image_info['source'] != TITLE:
+		if image_info['source'] != self.NAME:
 			return super(self.__class__, self).load_mask(image_id)
 		return image_info['image']
 
 	def image_reference(self, image_id):
 		info = self.image_info[image_id]
-		if info['source'] != TITLE:
+		if info['source'] != self.NAME:
 			super(self.__class__, self).image_reference(image_id)
 		else:
 			return info['path']

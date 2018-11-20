@@ -25,7 +25,7 @@ def mask_image(image, boxes, masks, class_ids, class_names, scores, colors=None)
         colors = random_colors(len(class_names))
     
     masked_image = np.array(image)
-    for i in range(n):image
+    for i in range(n):
         class_id = class_ids[i]
         color = colors[class_id]
         if not np.any(boxes[i]):
@@ -33,12 +33,12 @@ def mask_image(image, boxes, masks, class_ids, class_names, scores, colors=None)
         y1, x1, y2, x2 = boxes[i]
         cv2.rectangle(masked_image, (x1, y1), (x2, y2), color, thickness=2)
 
-        mask = makss[:, :, i]
+        mask = masks[:, :, i]
         masked_image = apply_mask(masked_image, mask, color)
 
         cv2.putText(
             masked_image, 
-            '{} {:.3f}'.format(class_names[class_id], score[i]), 
+            '{} {:.3f}'.format(class_names[class_id], scores[i]), 
             (x1 + 5, y1 + 16), 
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5, 
@@ -48,7 +48,7 @@ def mask_image(image, boxes, masks, class_ids, class_names, scores, colors=None)
         padded_mask = np.zeros((mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
         padded_mask[1:-1, 1:-1] = mask
         for v in find_contours(padded_mask, 0.5):
-            cv2.polylines(mask_image, (np.fliplr(v) - 1).reshape((-1, 1, 2)).astype(np.int32), True, color)
+            cv2.polylines(masked_image, (np.fliplr(v) - 1).reshape((-1, 1, 2)).astype(np.int32), True, color)
         return masked_image
 
 def start(model, class_names, size):
@@ -56,17 +56,18 @@ def start(model, class_names, size):
     try:
         while True:
             _, image = cap.read()
-            original_size, image = image.size(), cv2.resize(image, size)
+            image = cv2.resize(image, size)
             t = time.time()
             result = model.detect(image, 0)
-            t -= time.time()
+            t = time.time() - t
             print(t)
-
             cv2.imshow('Masked image', 
                 cv2.resize(
                     mask_image(image, result['rois'], result['masks'], 
                         result['class_ids'], class_names, result['scores'], colors),
-                    original_size
+                    None,
+                    fx=3,
+                    fy=3
                 )
             )
 
@@ -76,6 +77,7 @@ def start(model, class_names, size):
     except Exception as e:
         print(e)
     
+
     finally:
         cap.release()
         cv2.destroyAllWindows()

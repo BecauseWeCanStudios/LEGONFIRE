@@ -1,3 +1,4 @@
+import os
 import skimage
 from mrcnn import utils
 from mrcnn import config
@@ -28,21 +29,22 @@ class Model:
 	COCO_WEIGHTS_PATH = './mask_rcnn_coco.h5'
 
 	WEIGHT_LOADERS = {
-		'coco': __load_coco,
+		'coco': lambda self: self.__load_coco(),
 		'last': lambda self: self.model.find_last()[1],
 		'imagenet': lambda self: self.model.get_imagenet_weights()
 	}
 
 	def __init__(self, weights, mode, logs='./logs'):
-		assert mode in (TRAIN, INFERENCE), 'Unrecognised mode'
+		assert mode in (self.TRAIN, self.INFERENCE), 'Unrecognised mode'
 
-		self.config = Config() if mode == TRAIN else InferenceConfig
-		self.model = modellib.MaskRCNN(mode='training' if mode == TRAIN else 'inference', config=self.config, model_dir=logs)
+		self.config = Config() if mode == self.TRAIN else InferenceConfig()
+		self.model = modellib.MaskRCNN(mode='training' if mode == self.TRAIN else 'inference', 
+			config=self.config, model_dir=logs)
 
 		lweights = weights.lower()
-		weights_path = WEIGHT_LOADERS[lweights](self) if lweights in WEIGHT_LOADERS else weights
+		weights_path = self.WEIGHT_LOADERS[lweights](self) if lweights in self.WEIGHT_LOADERS else weights
 
-		model.load_weights(weights_path, by_name=True, 
+		self.model.load_weights(weights_path, by_name=True, 
 			exclude=['mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'] if lweights == 'coco' else [])
 
 	def train(self, train_dir, test_dir=None, epochs=30, learning_rate=1e-3):
@@ -57,6 +59,7 @@ class Model:
 		return self.detect(skimage.io.imread(path), verbose)
 
 	def __load_coco(self):
-		utils.download_trained_weights(COCO_WEIGHTS_PATH)
-		return COCO_WEIGHTS_PATH
+		if not os.path.exists(self.COCO_WEIGHTS_PATH):
+			utils.download_trained_weights(self.COCO_WEIGHTS_PATH)
+		return self.COCO_WEIGHTS_PATH
 
