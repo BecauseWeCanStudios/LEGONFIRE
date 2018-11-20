@@ -2,6 +2,7 @@
 import os
 import glob
 import errno
+import utils
 import random
 import argparse
 import platform
@@ -12,18 +13,9 @@ from tqdm import tqdm
 from math import ceil
 from itertools import chain
 
-def make_dirs(path):
-	path = os.path.dirname(path)
-	try:
-		if not os.path.exists(path):
-			os.makedirs(path)
-	except OSError as e:
-		if e.errno != errno.EEXIST:
-			raise
-
 def apply_background(back, img, path):
 	back.paste(img, (0, 0), img)
-	make_dirs(path)
+	utils.make_dirs(path)
 	back.save(path)
 
 def apply_noise_func(min, max):
@@ -36,15 +28,10 @@ def apply_noise_func(min, max):
 def choose_backgrounds(backgrounds, count):
 	return [(Image.open(file).convert('RGB'), os.path.splitext(os.path.basename(file))[0]) for file in random.sample(backgrounds, count)]
 
-def cut_string(s, n=20):
-	if len(s) > n:
-		return '...' + s[-17::]
-	return ' ' * (n - len(s)) + s
-
 def function(n, images, backgrounds, args):
 	pbar = tqdm(images, position=n)
 	for file in pbar:
-		pbar.set_description(cut_string(file))
+		pbar.set_description(utils.cut_string(file))
 		img = Image.open(file)
 		p = os.path.join(args.output, os.path.dirname(file))
 		n = os.path.splitext(os.path.basename(file))[0]
