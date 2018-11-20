@@ -11,6 +11,7 @@ import numpy as np
 import mrcnn.model as modellib
 from mrcnn import utils
 from mrcnn import config
+from mrcnn import visualize
 
 TITLE = 'LEGOVNO'
 COCO_WEIGHTS_PATH = './mask_rcnn_coco.h5'
@@ -108,16 +109,14 @@ def color_splash(image, mask):
 		splash = gray
 	return splash
 
-def detect_and_splash(model, image_path=None, video_path=None, output_path='./'):
+def detect_and_color_splash(model, image_path=None, video_path=None, output_path='./'):
 	assert image_path or video_path
 	
 	if image_path:
 		print('Running on {}'.format(image_path))
 		image = skimage.io.imread(args.image)
 		r = model.detect([image], verbose=1)[0]
-		splash = color_splash(image, r['masks'])
-		file_name = os.path.join(output_path, './{}_splash_{:%Y%m%dT%H%M%S}.png'.format(os.path.basename(image_path), datetime.datetime.now()))
-		skimage.io.imsave(file_name, splash)
+		visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], ['BG', '1x1', '1x2', '1x3'], r['scores'])
 	elif video_path:
 		vcapture = cv2.VideoCapture(video_path)
 		width = int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH))
