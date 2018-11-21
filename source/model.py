@@ -8,12 +8,12 @@ import mrcnn.model as modellib
 class Config(config.Config):
 
   NAME = 'LEGOVNO'
-  IMAGES_PER_GPU = 5
+  IMAGES_PER_GPU = 2
   GPU_COUNT = 1
   NUM_CLASSES = 4
   STEPS_PER_EPOCH = 100
   DETECTION_MIN_CONFIDENCE = 0.9
-  BACKBONE = 'resnet50'	
+  BACKBONE = 'resnet101'	
   IMAGE_MIN_DIM = 448
   IMAGE_MAX_DIM = 448
 

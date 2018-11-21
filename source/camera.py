@@ -1,6 +1,7 @@
 import re
 import cv2
 import time
+import threading
 import numpy as np
 from randomcolor import RandomColor
 from skimage.measure import find_contours
@@ -49,35 +50,68 @@ def mask_image(image, boxes, masks, class_ids, class_names, scores, colors=None)
         padded_mask[1:-1, 1:-1] = mask
         for v in find_contours(padded_mask, 0.5):
             cv2.polylines(masked_image, (np.fliplr(v) - 1).reshape((-1, 1, 2)).astype(np.int32), True, color)
-        return masked_image
+    return masked_image
+
+class Camera:
+
+    def __init__(self, colors, class_names, size):
+        self.colors = colors
+        self.class_names = class_names
+        self.cap = cv2.VideoCapture(0)
+        self.lock = threading.Lock()
+        self.image = None
+        self.mask = None
+        self.size = size
+        thread = threading.Thread(target=self.__async_show__)
+        thread.start()
+    
+    def __async_show__(self):
+        try:
+            while True:
+                self.lock.acquire()
+                _, image = self.cap.read()
+                image = cv2.resize(image, self.size)
+                self.image = image
+                mask = self.mask
+                colors = self.colors
+                class_names = self.class_names
+                self.lock.release()
+                if mask:
+                    image = mask_image(image, mask['rois'], mask['masks'], 
+                                mask['class_ids'], class_names, mask['scores'], colors)
+                cv2.imshow('Masked image', cv2.resize(image, None, fx=3, fy=3))
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+        except Exception as e:
+            print(e)
+
+        finally:
+            self.cap.release()
+            cv2.destroyAllWindows()
+
+    
+    def get_image(self):
+        self.lock.acquire()
+        image = self.image
+        self.lock.release()
+        return image
+
+    def set_mask(self, mask):
+        self.lock.acquire()
+        self.mask = mask
+        self.lock.release()
 
 def start(model, class_names, size):
-    colors, cap = random_colors(len(class_names)), cv2.VideoCapture(0)
-    try:
-        while True:
-            _, image = cap.read()
-            image = cv2.resize(image, size)
-            t = time.time()
-            result = model.detect(image, 0)
-            t = time.time() - t
-            print(t)
-            cv2.imshow('Masked image', 
-                cv2.resize(
-                    mask_image(image, result['rois'], result['masks'], 
-                        result['class_ids'], class_names, result['scores'], colors),
-                    None,
-                    fx=3,
-                    fy=3
-                )
-            )
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    except Exception as e:
-        print(e)
-    
-
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
+    colors = random_colors(len(class_names))
+    camera = Camera(colors, class_names, size)
+    while True:
+        image = camera.get_image()
+        if image is None:
+            continue
+        t = time.time()
+        result = model.detect(image, 0)
+        t = time.time() - t
+        print(t)
+        camera.set_mask(result)
