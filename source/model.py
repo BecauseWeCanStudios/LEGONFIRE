@@ -47,9 +47,9 @@ class Model:
 		self.model.load_weights(weights_path, by_name=True, 
 			exclude=['mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'] if lweights == 'coco' else [])
 
-	def train(self, train_dir, test_dir=None, epochs=30, learning_rate=1e-3):
-		train_dataset = Dataset.load_and_prepare(train_dir)
-		test_dataset = Dataset.load_and_prepare(test_dir) if test_dir else train_dataet
+	def train(self, train, test, classes, epochs=30, learning_rate=1e-3):
+		train_dataset = Dataset.load_and_prepare(train, classes)
+		test_dataset = Dataset.load_and_prepare(test, classes)
 		self.model.train(train_dataset, test_dataset, learning_rate=learning_rate, epochs=epochs, layers='heads')
 
 	def detect(self, image, verbose=1):

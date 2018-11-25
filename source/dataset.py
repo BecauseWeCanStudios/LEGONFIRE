@@ -1,5 +1,6 @@
 import os
 import glob
+import json
 import psutil
 import random
 import skimage
@@ -16,39 +17,17 @@ class Dataset(utils.Dataset):
 		result.prepare()
 		return result
 
-	def load_dataset_info(self, directory):
-		directory = os.path.join(directory, '*')
-		count, id, globs = 1, 0, []
-		for d in glob.iglob(directory):
-			if not os.path.isdir(d):
-				continue
-			self.add_class(self.NAME, count, os.path.basename(d))
-			shuffled = glob.glob(os.path.join(d, '**/*.png'), recursive=True)
-			random.shuffle(shuffled)
-			globs.append((i for i in shuffled))
-			count += 1
-
-		index = 0
-		read_masks = {}
-
-		while psutil.virtual_memory().available > 500 * 1024 * 1024:
-			try:
-				path = next(globs[index])
-				img = skimage.io.imread(path)
-				dir_path = os.path.dirname(path)
-				mask_path = os.path.splitext(os.path.basename(path))[0]
-				mask_path = os.path.join(dir_path, mask_path[:mask_path.find('_')] + '.mask')
-				if mask_path not in read_masks:
-					mask = skimage.io.imread(mask_path).astype(bool)
-					read_masks[mask_path] = mask.reshape((*mask.shape, 1))
-				mask = read_masks[mask_path]
-				self.add_image(self.NAME, image_id=id, path=path, image=img, mask=mask, 
-					class_ids=np.array([index + 1], dtype=np.int32))
-				id += 1
-			except StopIteration as e:
-				pass
-
-			index = (index + 1) % len(globs)
+	def load_dataset_info(self, file, classes):
+		for i in range(len(classes)):
+			self.add_class(self.NAME, i + 1, classes[i])
+		dataset, id = json.load(open(file)), 0
+		for i in dataset:
+			image = skimage.io.imread(i['image'])
+			bmask = np.load(i['boolmask'])
+			self.add_image(self.NAME, image_id=id, path=i['image'], 
+				image=image, mask=bmask['mask'], 
+				class_ids=np.array([classes.index(i) + 1 for i in bmask['classes']]), dtype=np.int32)
+			id += 1
 
 	def load_mask(self, image_id):
 		image_info = self.image_info[image_id]
