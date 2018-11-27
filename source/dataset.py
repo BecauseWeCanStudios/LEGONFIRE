@@ -4,6 +4,7 @@ import json
 import psutil
 import random
 import skimage
+import numpy as np
 from mrcnn import utils
 
 class Dataset(utils.Dataset):
@@ -11,9 +12,9 @@ class Dataset(utils.Dataset):
 	NAME = 'LEGOVNO'
 
 	@staticmethod
-	def load_and_prepare(dir):
+	def load_and_prepare(dir, classes):
 		result = Dataset()
-		result.load_dataset_info(dir)
+		result.load_dataset_info(dir, classes)
 		result.prepare()
 		return result
 
