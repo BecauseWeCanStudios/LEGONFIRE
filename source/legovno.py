@@ -30,8 +30,8 @@ def splash_image(model, path, output_path):
 def splash_video(model, path, output_path):
 	vcapture = cv2.VideoCapture(path)
 	vwriter = cv2.VideoWriter(
-		os.path.join(output_path, '{}_splash.avi'.format(os.path.splitext(os.path.basename(path))[0])),
-		cv2.VideoWriter_fourcc(*'MJPG'),
+		os.path.join(output_path, '{}_splash.mp4'.format(os.path.splitext(os.path.basename(path))[0])),
+		cv2.VideoWriter_fourcc(*'mp4v'),
 		vcapture.get(cv2.CAP_PROP_FPS), 
 		(int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(vcapture.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 	)
