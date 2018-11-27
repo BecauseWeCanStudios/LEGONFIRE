@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import os
 import cv2
+import json
+import tables
 import camera
 import skimage
 import argparse
@@ -50,7 +52,14 @@ def visualize_image(model, path):
 		['BG', '1x1', '1x2', '1x3'], result['scores'])
 
 OPERATIONS = {
-	'train': lambda model, args: model.train(args.train_dataset, args.test_dataset, ['1x1', '1x2', '1x3'], args.epochs, args.learning_rate),
+	'train': lambda model, args: model.train(
+					tables.open_file(args.dataset, mode='r'),
+					json.load(open(args.train)), 
+					json.load(open(args.test)),
+					['1x1', '1x2', '1x3'], 
+					args.epochs, 
+					args.learning_rate
+				),
 	'splash_image': lambda model, args: splash_image(model, args.input, args.output),
 	'splash_video': lambda model, args: splash_video(model, args.input, args.output),
 	'visualize': lambda model, args: visualize_image(model, args.input),
@@ -60,8 +69,9 @@ OPERATIONS = {
 parser = argparse.ArgumentParser(description='Program ti die yourself')
 parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
 	choices=('train', 'splash_image', 'splash_video', 'splash_camera', 'visualize'))
-parser.add_argument('-t', '--train_dataset', help='Path to JSON file containing train dataset', type=str)
-parser.add_argument('-v', '--test_dataset', help='Path to JSON file containing test dataset', type=str)
+parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing dataset', type=str, default='dataset.hdf5')
+parser.add_argument('-t', '--train', help='Path to JSON file containing train ids', type=str, default='train.json')
+parser.add_argument('-v', '--test', help='Path to JSON file containing test ids', type=str, default='test.json')
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)
 parser.add_argument('-e', '--epochs', help='Number of epochs', type=int, default=30)
@@ -70,9 +80,7 @@ parser.add_argument('-i', '--input', help='Path or URL to image or video', type=
 parser.add_argument('-o', '--output', help='Path to output directory', type=str)
 args = parser.parse_args()
 
-if args.operation == 'train':
-	assert args.train_dataset, 'Argument --train_dataset is required for training'
-elif args.operation != 'splash_camera':
+if args.operation != 'splash_camera' and args.operation != 'train':
 	assert args.input, "Provide --input to apply color splash"
 
 model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)
