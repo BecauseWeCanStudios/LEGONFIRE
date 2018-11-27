@@ -47,7 +47,7 @@ def visualize_image(model, path):
 	image = skimage.io.imread(path)
 	result = model.detect(image)
 	visualize.display_instances(image, result['rois'], result['masks'], result['class_ids'], 
-		['BG', '1x1', '1x2', '1x3'], result['scroes'])
+		['BG', '1x1', '1x2', '1x3'], result['scores'])
 
 OPERATIONS = {
 	'train': lambda model, args: model.train(args.train_dataset, args.test_dataset, ['1x1', '1x2', '1x3'], args.epochs, args.learning_rate),
