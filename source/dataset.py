@@ -23,7 +23,7 @@ class Dataset(utils.Dataset):
 				image_id=i, 
 				image='image{}'.format(i), 
 				mask='mask{}'.format(i),
-				class_ids=np.array([classes.index(i.decode('utf-8')) + 1 for i in data.root['classes{}'.format(i)][:]], dtype=np.int32)
+				class_ids=np.array([classes.index(i.decode('ascii')) + 1 for i in data.root['classes{}'.format(i)][:]], dtype=np.int32)
 			)
 
 	def load_mask(self, image_id):

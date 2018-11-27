@@ -13,7 +13,6 @@ import numpy as np
 from tqdm import tqdm
 from math import ceil
 from queue import Queue
-from itertools import chain
 from utils import cut_string
 import matplotlib.pyplot as plt
 
