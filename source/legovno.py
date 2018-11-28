@@ -53,10 +53,7 @@ def visualize_image(model, path):
 
 OPERATIONS = {
 	'train': lambda model, args: model.train(
-					tables.open_file(args.dataset, mode='r'),
-					json.load(open(args.train)), 
-					json.load(open(args.test)),
-					['1x1', '1x2', '1x3'], 
+					tables.open_file(args.dataset, mode='r'), 
 					args.epochs, 
 					args.learning_rate
 				),
@@ -70,8 +67,6 @@ parser = argparse.ArgumentParser(description='Program ti die yourself')
 parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
 	choices=('train', 'splash_image', 'splash_video', 'splash_camera', 'visualize'))
 parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing dataset', type=str, default='dataset.hdf5')
-parser.add_argument('-t', '--train', help='Path to JSON file containing train ids', type=str, default='train.json')
-parser.add_argument('-v', '--test', help='Path to JSON file containing test ids', type=str, default='test.json')
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)
 parser.add_argument('-e', '--epochs', help='Number of epochs', type=int, default=30)
