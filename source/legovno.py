@@ -12,6 +12,8 @@ from model import Model
 from mrcnn import utils
 from mrcnn import config
 from mrcnn import visualize
+from camera import mask_image
+import matplotlib.pyplot as plt
 
 def color_splash(image, mask):
 	gray, mask = skimage.color.gray2rgb(skimage.color.rgb2gray(image)) * 255, (np.sum(mask, -1, keepdims=True) >= 1)
@@ -23,7 +25,8 @@ def color_splash(image, mask):
 
 def detect_and_splash(model, image):
 	result = model.detect(image)
-	return color_splash(image, result['masks'])
+	return mask_image(image, result['rois'], result['mask'], 
+		result['class_ids'], ['BG', '1x1', '1x2', '1x3'], result['scores'])
 
 def splash_image(model, path, output_path):
 	skimage.io.imsave(os.path.join(output_path, '{}_splash.png'.format(os.path.splitext(os.path.basename(path))[0])), 
@@ -46,10 +49,8 @@ def splash_video(model, path, output_path):
 			vwriter.release()
 
 def visualize_image(model, path):
-	image = skimage.io.imread(path)
-	result = model.detect(image)
-	visualize.display_instances(image, result['rois'], result['masks'], result['class_ids'], 
-		['BG', '1x1', '1x2', '1x3'], result['scores'])
+	plt.imshow(detect_and_splash(model, skimage.io.imread(path)))
+	plt.show()
 
 OPERATIONS = {
 	'train': lambda model, args: model.train(
