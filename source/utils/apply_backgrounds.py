@@ -1,7 +1,6 @@
 #!/usr/bin/python
 import os
 import glob
-import errno
 import utils
 import random
 import argparse

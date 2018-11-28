@@ -34,7 +34,7 @@ def stdout_redirector(stream):
 
 
 parser = argparse.ArgumentParser(description='Extract frames from videos')
-parser.add_argument('files', metavar='VID', nargs='+', help='Vedios')
+parser.add_argument('files', metavar='VID', nargs='+', help='Videos')
 parser.add_argument('-s', '--skip_frames', type=int, metavar='N', help='Extract every N\'s frame', default=1)
 parser.add_argument('--roi', action='store_true', help='Extract ROI')
 parser.add_argument('--height', type=int, default=None, help='ROI height', metavar='H')
