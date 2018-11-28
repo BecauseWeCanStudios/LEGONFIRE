@@ -41,13 +41,14 @@ def worker(n, files, result, classes, uclasses, colors, count, lock, queue):
 		mask = skimage.io.imread(os.path.join(dir, name + '.mask.png'))
 		mask = np.apply_along_axis(lambda x: x == colors, 2, mask).sum(axis=3) == 3
 		ind = [i for i in range(len(classes)) if mask[::, ::, i].sum() > 0]
-		lock.acquire()
-		queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
-		queue.put_nowait(('mask', count, mask[:, :, ind]))
-		queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
-		result.append(count)
-		lock.release()
-		count += 1
+		if ind:
+			lock.acquire()
+			queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
+			queue.put_nowait(('mask', count, mask[:, :, ind]))
+			queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
+			result.append(count)
+			lock.release()
+			count += 1
 
 
 def writer(file, filters, queue, is_done, lock):
