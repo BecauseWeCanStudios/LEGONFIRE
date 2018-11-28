@@ -58,15 +58,15 @@ OPERATIONS = {
 					args.epochs, 
 					args.learning_rate
 				),
-	'splash_image': lambda model, args: splash_image(model, args.input, args.output),
-	'splash_video': lambda model, args: splash_video(model, args.input, args.output),
+	'image': lambda model, args: splash_image(model, args.input, args.output),
+	'video': lambda model, args: splash_video(model, args.input, args.output),
 	'visualize': lambda model, args: visualize_image(model, args.input),
-	'splash_camera': lambda model, args: camera.start(model, ['BG', '1x1', '1x2', '1x3'], (448, 448))
+	'camera': lambda model, args: camera.start(model, ['BG', '1x1', '1x2', '1x3'], (448, 448))
 }
 
 parser = argparse.ArgumentParser(description='Program ti die yourself')
 parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
-	choices=('train', 'splash_image', 'splash_video', 'splash_camera', 'visualize'))
+	choices=('train', 'image', 'video', 'camera', 'visualize'))
 parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing dataset', type=str, default='dataset.hdf5')
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)

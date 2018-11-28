@@ -7,7 +7,6 @@ import random
 import tables
 import skimage
 import argparse
-import warnings
 import threading
 import numpy as np
 from tqdm import tqdm
@@ -63,13 +62,11 @@ def writer(file, filters, queue, is_done, lock):
 			category, id, value = queue.get_nowait()
 			id += count
 			lock.release()
-			arr = file.create_carray(file.root[category], '_' + str(id), obj=value)
+			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
 			lock.acquire()
 			b = queue.empty()
 		lock.release()
 
-
-warnings.filterwarnings('ignore')
 
 parser = argparse.ArgumentParser(description='Prepare dataset')
 parser.add_argument('directory', metavar='DIR', help='Path to dataset', type=str)
@@ -77,8 +74,8 @@ parser.add_argument('-f', '--file', type=str, default='dataset.hdf5', help='HDF5
 parser.add_argument('--train', metavar='P', help='Train weight', type=float, default=0.8)
 parser.add_argument('--classes', metavar='C', help='Path to classes json', default='types.json')
 parser.add_argument('-t', '--threads', type=int, default=1, help='Number of threads', metavar='N')
-parser.add_argument('--complevel', type=int, default=5, help='Compression level', metavar='L')
-parser.add_argument('--complib', type=str, default='blosc', help='Compression library', metavar='L')
+parser.add_argument('--complevel', type=int, default=9, help='Compression level', metavar='L')
+parser.add_argument('--complib', type=str, default='blosc:lz4hc', help='Compression library', metavar='L')
 args = parser.parse_args()
 
 assert args.train <= 1, 'Train weight must be in range [0, 1]'
