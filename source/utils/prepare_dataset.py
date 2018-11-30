@@ -35,15 +35,14 @@ def unique(uclasses, classes):
 def worker(n, files, result, classes, uclasses, colors, count, lock, queue):
 	pbar = tqdm(files, position=n)
 	uclasses = ['background'] + list(set(classes))
+	n_colors, n_classes = len(colors), len(classes)
 	for file in pbar:
 		pbar.set_description(cut_string(file))
 		dir, name = os.path.dirname(file), os.path.splitext(os.path.basename(file))[0]
 		mask = skimage.io.imread(os.path.join(dir, name + '.mask.png'))
-		if len(mask.shape) <= 2:
-			mask = mask.reshape((*mask.shape, 1))
-		color = colors[mask.shape[-1]]
-		mask = np.apply_along_axis(lambda x: x == color, 2, mask).sum(axis=3) == mask.shape[-1]
-		ind = [i for i in range(len(classes)) if mask[::, ::, i].sum() > 0]
+		mask = mask.reshape((*mask.shape, 1)) if len(mask.shape) <= 2 else mask[:, :, [0]]
+		mask = mask.repeat(n_colors, axis=2) == colors
+		ind = [i for i in range(n_classes) if mask[::, ::, i].any()]
 		if ind:
 			lock.acquire()
 			queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
@@ -85,8 +84,7 @@ args = parser.parse_args()
 assert args.train <= 1, 'Train weight must be in range [0, 1]'
 
 classes = np.array([i.encode('ascii') for i in json.load(open(os.path.join(args.directory, args.classes)))])
-colors = np.array([(i, i, i, 1) for i in range(1, len(classes) + 1)], dtype='uint8')
-colors = [colors[:, :i] for i in range(5)]
+colors = np.array([i for i in range(1, len(classes) + 1)], dtype='uint8')
 
 filters = tables.Filters(complevel=args.complevel, complib=args.complib)
 if os.path.exists(args.file):
