@@ -8,19 +8,17 @@ import mrcnn.model as modellib
 class Config(config.Config):
 
   NAME = 'LEGOVNO'
-  IMAGES_PER_GPU = 2
+  IMAGES_PER_GPU = 1
   GPU_COUNT = 1
   NUM_CLASSES = 4
-  STEPS_PER_EPOCH = 100
+  STEPS_PER_EPOCH = 1000
   DETECTION_MIN_CONFIDENCE = 0.9
   BACKBONE = 'resnet101'	
-  IMAGE_MIN_DIM = 448
-  IMAGE_MAX_DIM = 448
+  IMAGE_MIN_DIM = 1024
+  IMAGE_MAX_DIM = 1024
 
-class InferenceConfig(Config):
-
-  IMAGES_PER_GPU = 1
-
+class InferenceConfig(Config): 
+	pass
 
 class Model:
 
@@ -50,7 +48,7 @@ class Model:
 	def train(self, data, epochs=30, learning_rate=1e-3):
 		train_dataset = Dataset.load_and_prepare(data.root.train[:], data)
 		test_dataset = Dataset.load_and_prepare(data.root.test[:], data)
-		self.model.train(train_dataset, test_dataset, learning_rate=learning_rate, epochs=epochs, layers='heads')
+		self.model.train(train_dataset, test_dataset, learning_rate=learning_rate, epochs=epochs, layers='all')
 
 	def detect(self, image, verbose=1):
 		return self.model.detect([image], verbose=verbose)[0]
