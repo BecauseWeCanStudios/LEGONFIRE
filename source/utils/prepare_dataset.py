@@ -49,7 +49,7 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 				queue.put_nowait((
 					('image', count, skimage.io.imread(file)[:, :, :3]),
 					('mask', count, mask),
-					('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8'))
+					('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
 				))
 			count += 1
 	queue.close()
@@ -57,7 +57,7 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 
 
 def writer(file, filters, queue, lock):
-	count = file.root.count[0]
+	count, num_written = file.root.count[0], 0
 	while True:
 		with lock:
 			values = []
@@ -67,12 +67,13 @@ def writer(file, filters, queue, lock):
 			category, id, value = i
 			id += count
 			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
+			num_written += 1
 		if not multiprocessing.active_children():
-			return
+			return num_written // 3
 
 
 if __name__ == '__main__':
-	
+
 	parser = argparse.ArgumentParser(description='Prepare dataset')
 	parser.add_argument('directory', metavar='DIR', help='Path to dataset', type=str)
 	parser.add_argument('-f', '--file', type=str, default='dataset.hdf5', help='HDF5 dataset file', metavar='F')
@@ -113,7 +114,7 @@ if __name__ == '__main__':
 	for i in range(args.processes):
 		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, queue)))
 
-	writer(file, filters, queue, lock)
+	count = writer(file, filters, queue, lock)
 
 	for i in processes:
 		print()
