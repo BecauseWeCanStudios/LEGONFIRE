@@ -4,8 +4,8 @@ import cv2
 import json
 import tables
 import camera
-import skimage
 import argparse
+import skimage.io
 import numpy as np
 import mrcnn.model as modellib
 from model import Model
@@ -14,14 +14,6 @@ from mrcnn import config
 from mrcnn import visualize
 from camera import mask_image
 import matplotlib.pyplot as plt
-
-def color_splash(image, mask):
-	gray, mask = skimage.color.gray2rgb(skimage.color.rgb2gray(image)) * 255, (np.sum(mask, -1, keepdims=True) >= 1)
-	if mask.shape[0] > 0:
-		splash = np.where(mask, image, gray).astype(np.uint8)
-	else:
-		splash = gray
-	return splash
 
 def detect_and_splash(model, image):
 	result = model.detect(image)

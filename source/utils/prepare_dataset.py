@@ -5,9 +5,9 @@ import glob
 import time
 import random
 import tables
-import skimage
 import argparse
 import threading
+import skimage.io
 import numpy as np
 from tqdm import tqdm
 from math import ceil

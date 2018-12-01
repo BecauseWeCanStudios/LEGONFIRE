@@ -1,5 +1,5 @@
 import os
-import skimage
+import skimage.io
 from mrcnn import utils
 from mrcnn import config
 from dataset import Dataset
