@@ -5,15 +5,19 @@ import glob
 import random
 import tables
 import argparse
-import threading
 import skimage.io
 import numpy as np
+import multiprocessing
 from tqdm import tqdm
 from math import ceil
 from utils import cut_string
-from queue import Queue, Empty
-import matplotlib.pyplot as plt
 from skimage.morphology import remove_small_objects
+
+
+def start_process(target, args):
+	process = multiprocessing.Process(target=target, args=args, daemon=True)
+	process.start()
+	return process
 
 
 def unique(uclasses, classes):
@@ -42,26 +46,28 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 			for i in range(mask.shape[-1]):
 				remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
 			with lock:
-				queue.put_nowait
-				queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
-				queue.put_nowait(('mask', count, mask))
-				queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
+				queue.put_nowait((
+					('image', count, skimage.io.imread(file)[:, :, :3]),
+					('mask', count, mask),
+					('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8'))
+				))
 			count += 1
+	queue.close()
+	pbar.close()
 
 
-def writer(file, filters, queue, event, lock):
+def writer(file, filters, queue, lock):
 	count = file.root.count[0]
 	while True:
-		b = event.wait(1)
 		with lock:
-			a = []
+			values = []
 			while not queue.empty():
-				a.append(queue.get_nowait())
-		for i in a:
+				values.extend(queue.get_nowait())
+		for i in values:
 			category, id, value = i
 			id += count
 			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
-		if b:
+		if not multiprocessing.active_children():
 			return
 
 
@@ -70,7 +76,7 @@ parser.add_argument('directory', metavar='DIR', help='Path to dataset', type=str
 parser.add_argument('-f', '--file', type=str, default='dataset.hdf5', help='HDF5 dataset file', metavar='F')
 parser.add_argument('--train', metavar='P', help='Train weight', type=float, default=0.8)
 parser.add_argument('--classes', metavar='C', help='Path to classes json', default='types.json')
-parser.add_argument('-t', '--threads', type=int, default=1, help='Number of threads', metavar='N')
+parser.add_argument('-p', '--processes', type=int, default=1, help='Number of processes', metavar='N')
 parser.add_argument('--complevel', type=int, default=9, help='Compression level', metavar='L')
 parser.add_argument('--complib', type=str, default='blosc:lz4hc', help='Compression library', metavar='L')
 parser.add_argument('--save_path', action='store_true', help='Save image path')
@@ -100,24 +106,15 @@ files = list(filter(lambda x: not x.endswith('.mask.png'), glob.iglob(os.path.jo
 count = len(files)
 random.shuffle(files)
 
-tn, queue, lock, event, threads = ceil(count / args.threads), Queue(), threading.Lock(), threading.Event(), []
+pn, queue, lock, processes = ceil(count / args.processes), multiprocessing.Queue(), multiprocessing.Lock(), []
 
-writer_thread = threading.Thread(target=writer, args=(file, filters, queue, event, lock))
-writer_thread.start()
+for i in range(args.processes):
+	processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, queue)))
 
-for i in range(args.threads):
-	threads.append(threading.Thread(target=worker, args=(i, files[i * tn:(i + 1) * tn], classes, file.root.classes[:], colors, i * tn, lock, queue)))
-	threads[-1].start()
+writer(file, filters, queue, lock)
 
-for i in threads:
-	i.join()
-
-for i in threads:
+for i in processes:
 	print()
-
-print('Writing files...')
-event.set()
-writer_thread.join()
 
 if args.save_path:
 	if not '/path' in file.root:
