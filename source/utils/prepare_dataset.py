@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import os
+import time
 import json
 import glob
 import random
@@ -59,6 +60,9 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 def writer(file, filters, queue, lock):
 	count, num_written = file.root.count[0], 0
 	while True:
+		if queue.empty():
+			time.sleep(1)
+			continue
 		with lock:
 			values = []
 			while not queue.empty():
@@ -68,7 +72,7 @@ def writer(file, filters, queue, lock):
 			id += count
 			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
 			num_written += 1
-		if not multiprocessing.active_children():
+		if not multiprocessing.active_children() and queue.empty() and not queue.qsize():
 			return num_written // 3
 
 
