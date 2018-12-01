@@ -10,9 +10,10 @@ import skimage.io
 import numpy as np
 from tqdm import tqdm
 from math import ceil
-from queue import Queue, Empty
 from utils import cut_string
+from queue import Queue, Empty
 import matplotlib.pyplot as plt
+from skimage.morphology import remove_small_objects
 
 
 def unique(uclasses, classes):
@@ -37,10 +38,13 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 		mask = mask.repeat(n_colors, axis=2) == colors
 		ind = [i for i in range(n_classes) if mask[::, ::, i].any()]
 		if ind:
+			mask = mask[:, :, ind]
+			for i in range(mask.shape[-1]):
+				remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
 			with lock:
 				queue.put_nowait
 				queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
-				queue.put_nowait(('mask', count, mask[:, :, ind]))
+				queue.put_nowait(('mask', count, mask))
 				queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
 			count += 1
 
@@ -123,9 +127,9 @@ if args.save_path:
 		file.root.path.append(np.full((diff,), ''))
 	file.root.path.append(np.fromiter((i[-50:] for i in files), dtype='|S50'))
 
-result = np.array(range(len(files))) + file.root.count[0]
-file.root.count[0] += len(files)
+result = np.array(range(count)) + file.root.count[0]
+file.root.count[0] += count
 
-k = int(len(files) * args.train)
+k = int(count * args.train)
 file.root.train.append(result[:k:])
 file.root.test.append(result[k::])
