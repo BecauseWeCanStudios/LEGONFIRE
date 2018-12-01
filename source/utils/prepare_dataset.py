@@ -11,7 +11,7 @@ import skimage.io
 import numpy as np
 from tqdm import tqdm
 from math import ceil
-from queue import Queue
+from queue import Queue, Empty
 from utils import cut_string
 import matplotlib.pyplot as plt
 
@@ -32,7 +32,7 @@ def unique(uclasses, classes):
 		uclasses.append(new)
 
 
-def worker(n, files, result, classes, uclasses, colors, count, lock, queue):
+def worker(n, files, classes, uclasses, colors, count, lock, queue):
 	pbar = tqdm(files, position=n)
 	uclasses = ['background'] + list(set(classes))
 	n_colors, n_classes = len(colors), len(classes)
@@ -44,31 +44,28 @@ def worker(n, files, result, classes, uclasses, colors, count, lock, queue):
 		mask = mask.repeat(n_colors, axis=2) == colors
 		ind = [i for i in range(n_classes) if mask[::, ::, i].any()]
 		if ind:
-			lock.acquire()
-			queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
-			queue.put_nowait(('mask', count, mask[:, :, ind]))
-			queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
-			result.append(count)
-			lock.release()
+			with lock:
+				queue.put_nowait
+				queue.put_nowait(('image', count, skimage.io.imread(file)[:, :, :3]))
+				queue.put_nowait(('mask', count, mask[:, :, ind]))
+				queue.put_nowait(('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8')))
 			count += 1
 
 
-def writer(file, filters, queue, is_done, lock):
+def writer(file, filters, queue, event, lock):
 	count = file.root.count[0]
 	while True:
-		time.sleep(1)
-		lock.acquire()
-		b = queue.empty()
-		if is_done.value and b:
-			return
-		while not b:
-			category, id, value = queue.get_nowait()
+		b = event.wait(1)
+		with lock:
+			a = []
+			while not queue.empty():
+				a.append(queue.get_nowait())
+		for i in a:
+			category, id, value = i
 			id += count
-			lock.release()
 			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
-			lock.acquire()
-			b = queue.empty()
-		lock.release()
+		if b:
+			return
 
 
 parser = argparse.ArgumentParser(description='Prepare dataset')
@@ -106,11 +103,12 @@ random.shuffle(files)
 
 result, tn, queue, lock, is_done, threads = [], ceil(len(files) / args.threads), Queue(), threading.Lock(), Wrapper(False), []
 
-writer_thread = threading.Thread(target=writer, args=(file, filters, queue, is_done, lock))
+event = threading.Event()
+writer_thread = threading.Thread(target=writer, args=(file, filters, queue, event, lock))
 writer_thread.start()
 
 for i in range(args.threads):
-	threads.append(threading.Thread(target=worker, args=(i, files[i * tn:(i + 1) * tn], result, classes, file.root.classes[:], colors, i * tn, lock, queue)))
+	threads.append(threading.Thread(target=worker, args=(i, files[i * tn:(i + 1) * tn], classes, file.root.classes[:], colors, i * tn, lock, queue)))
 	threads[-1].start()
 
 for i in threads:
@@ -119,14 +117,11 @@ for i in threads:
 for i in threads:
 	print()
 
-lock.acquire()
-is_done.value = True
-lock.release()
-
 print('Writing files...')
+event.set()
 writer_thread.join()
 
-result = np.array(result) + file.root.count[0]
+result = np.array(range(len(files))) + file.root.count[0]
 file.root.count[0] += len(files)
 
 k = int(len(files) * args.train)
