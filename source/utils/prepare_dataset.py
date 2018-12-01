@@ -2,7 +2,6 @@
 import os
 import json
 import glob
-import time
 import random
 import tables
 import argparse
@@ -14,12 +13,6 @@ from math import ceil
 from queue import Queue, Empty
 from utils import cut_string
 import matplotlib.pyplot as plt
-
-
-class Wrapper:
-
-	def __init__(self, value):
-		self.value = value
 
 
 def unique(uclasses, classes):
@@ -76,6 +69,7 @@ parser.add_argument('--classes', metavar='C', help='Path to classes json', defau
 parser.add_argument('-t', '--threads', type=int, default=1, help='Number of threads', metavar='N')
 parser.add_argument('--complevel', type=int, default=9, help='Compression level', metavar='L')
 parser.add_argument('--complib', type=str, default='blosc:lz4hc', help='Compression library', metavar='L')
+parser.add_argument('--save_path', action='store_true', help='Save image path')
 args = parser.parse_args()
 
 assert args.train <= 1, 'Train weight must be in range [0, 1]'
@@ -99,11 +93,11 @@ else:
 unique(file.root.classes, classes)
 
 files = list(filter(lambda x: not x.endswith('.mask.png'), glob.iglob(os.path.join(args.directory, '**/*.png'), recursive=True)))
+count = len(files)
 random.shuffle(files)
 
-result, tn, queue, lock, is_done, threads = [], ceil(len(files) / args.threads), Queue(), threading.Lock(), Wrapper(False), []
+tn, queue, lock, event, threads = ceil(count / args.threads), Queue(), threading.Lock(), threading.Event(), []
 
-event = threading.Event()
 writer_thread = threading.Thread(target=writer, args=(file, filters, queue, event, lock))
 writer_thread.start()
 
@@ -120,6 +114,14 @@ for i in threads:
 print('Writing files...')
 event.set()
 writer_thread.join()
+
+if args.save_path:
+	if not '/path' in file.root:
+		file.create_earray(file.root, 'path', atom=tables.StringAtom(50), shape=(0,), filters=filters)
+	diff = file.root.count[0] - file.root.path.shape[0]
+	if diff:
+		file.root.path.append(np.full((diff,), ''))
+	file.root.path.append(np.fromiter((i[-50:] for i in files), dtype='|S50'))
 
 result = np.array(range(len(files))) + file.root.count[0]
 file.root.count[0] += len(files)
