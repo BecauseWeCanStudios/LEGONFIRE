@@ -53,19 +53,18 @@ def worker(n, files, classes, uclasses, colors, count, lock, conn):
 					('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
 				))
 			count += 1
-	queue.close()
 	pbar.close()
 
 
 def writer(file, filters, conn, lock):
 	count, num_written = file.root.count[0], 0
 	while True:
-		conn.poll(None)
-		for i in conn.recv():
-			category, id, value = i
-			id += count
-			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
-			num_written += 1
+		if conn.poll(1):
+			for i in conn.recv():
+				category, id, value = i
+				id += count
+				arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
+				num_written += 1
 		if not multiprocessing.active_children():
 			return num_written // 3
 
@@ -113,7 +112,7 @@ if __name__ == '__main__':
 	for i in range(args.processes):
 		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, conn_out)))
 
-	count = writer(file, filters, a, lock)
+	count = writer(file, filters, conn_in, lock)
 
 	for i in processes:
 		print()
