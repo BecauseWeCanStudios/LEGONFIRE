@@ -31,7 +31,7 @@ def unique(uclasses, classes):
 		uclasses.append(new)
 
 
-def worker(n, files, classes, uclasses, colors, count, lock, queue):
+def worker(n, files, classes, uclasses, colors, count, lock, conn):
 	pbar = tqdm(files, position=n)
 	uclasses = ['background'] + list(set(classes))
 	n_colors, n_classes = len(colors), len(classes)
@@ -47,7 +47,7 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 			for i in range(mask.shape[-1]):
 				remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
 			with lock:
-				queue.put_nowait((
+				conn.send((
 					('image', count, skimage.io.imread(file)[:, :, :3]),
 					('mask', count, mask),
 					('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
@@ -57,22 +57,16 @@ def worker(n, files, classes, uclasses, colors, count, lock, queue):
 	pbar.close()
 
 
-def writer(file, filters, queue, lock):
+def writer(file, filters, conn, lock):
 	count, num_written = file.root.count[0], 0
 	while True:
-		if queue.empty():
-			time.sleep(1)
-			continue
-		with lock:
-			values = []
-			while not queue.empty():
-				values.extend(queue.get_nowait())
-		for i in values:
+		conn.poll(None)
+		for i in conn.recv():
 			category, id, value = i
 			id += count
 			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
 			num_written += 1
-		if not multiprocessing.active_children() and queue.empty() and not queue.qsize():
+		if not multiprocessing.active_children():
 			return num_written // 3
 
 
@@ -113,12 +107,13 @@ if __name__ == '__main__':
 	count = len(files)
 	random.shuffle(files)
 
-	pn, queue, lock, processes = ceil(count / args.processes), multiprocessing.Queue(), multiprocessing.Lock(), []
+	pn, lock, processes = ceil(count / args.processes), multiprocessing.Lock(), []
+	conn_in, conn_out = multiprocessing.Pipe(False)
 
 	for i in range(args.processes):
-		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, queue)))
+		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, conn_out)))
 
-	count = writer(file, filters, queue, lock)
+	count = writer(file, filters, a, lock)
 
 	for i in processes:
 		print()
