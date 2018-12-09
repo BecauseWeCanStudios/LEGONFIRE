@@ -33,7 +33,7 @@ def unique(uclasses, classes):
 
 def worker(n, files, classes, uclasses, colors, count, lock, conn):
 	pbar = tqdm(files, position=n)
-	uclasses = ['background'] + list(set(classes))
+	uclasses = ['background'] + sorted(list(set(classes)))
 	n_colors, n_classes = len(colors), len(classes)
 	for file in pbar:
 		pbar.set_description(cut_string(file))
