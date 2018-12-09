@@ -42,31 +42,26 @@ def worker(n, files, classes, uclasses, colors, count, lock, conn):
 		mask = mask.reshape((*mask.shape, 1)) if len(mask.shape) <= 2 else mask[:, :, [0]]
 		mask = mask.repeat(n_colors, axis=2) == colors
 		ind = [i for i in range(n_classes) if mask[::, ::, i].any()]
-		if ind:
-			mask = mask[:, :, ind]
-			for i in range(mask.shape[-1]):
-				remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
-			with lock:
-				conn.send((
-					('image', count, skimage.io.imread(file)[:, :, :3]),
-					('mask', count, mask),
-					('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
-				))
-			count += 1
+		mask = mask[:, :, ind]
+		for i in range(mask.shape[-1]):
+			remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
+		with lock:
+			conn.send((
+				('image', count, skimage.io.imread(file)[:, :, :3]),
+				('mask', count, mask),
+				('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
+			))
+		count += 1
 	pbar.close()
 
 
 def writer(file, filters, conn, lock):
-	count, num_written = file.root.count[0], 0
-	while True:
-		if conn.poll(1):
-			for i in conn.recv():
-				category, id, value = i
-				id += count
-				arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
-				num_written += 1
-		if not multiprocessing.active_children():
-			return num_written // 3
+	count = file.root.count[0]
+	while multiprocessing.active_children() or conn.poll(1):
+		for i in conn.recv():
+			category, id, value = i
+			id += count
+			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
 
 
 if __name__ == '__main__':
@@ -112,7 +107,7 @@ if __name__ == '__main__':
 	for i in range(args.processes):
 		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, conn_out)))
 
-	count = writer(file, filters, conn_in, lock)
+	writer(file, filters, conn_in, lock)
 
 	for i in processes:
 		print()
