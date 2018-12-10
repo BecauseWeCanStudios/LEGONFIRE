@@ -33,7 +33,7 @@ def unique(uclasses, classes):
 
 def worker(n, files, classes, uclasses, colors, count, lock, conn):
 	pbar = tqdm(files, position=n)
-	uclasses = ['background'] + sorted(list(set(classes)))
+	uclasses = list(uclasses)
 	n_colors, n_classes = len(colors), len(classes)
 	for file in pbar:
 		pbar.set_description(cut_string(file))
@@ -49,7 +49,7 @@ def worker(n, files, classes, uclasses, colors, count, lock, conn):
 			conn.send((
 				('image', count, skimage.io.imread(file)[:, :, :3]),
 				('mask', count, mask),
-				('class_id', count, np.array([uclasses.index(i) for i in classes[ind]], dtype='uint8'))
+				('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8'))
 			))
 		count += 1
 	pbar.close()
