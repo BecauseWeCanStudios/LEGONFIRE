@@ -31,7 +31,7 @@ def unique(uclasses, classes):
 		uclasses.append(new)
 
 
-def worker(n, files, classes, uclasses, colors, count, lock, conn):
+def worker(n, files, classes, uclasses, colors, lock, conn):
 	pbar = tqdm(files, position=n)
 	uclasses = list(uclasses)
 	n_colors, n_classes = len(colors), len(classes)
@@ -42,26 +42,32 @@ def worker(n, files, classes, uclasses, colors, count, lock, conn):
 		mask = mask.reshape((*mask.shape, 1)) if len(mask.shape) <= 2 else mask[:, :, [0]]
 		mask = mask.repeat(n_colors, axis=2) == colors
 		ind = [i for i in range(n_classes) if mask[::, ::, i].any()]
-		mask = mask[:, :, ind]
-		for i in range(mask.shape[-1]):
-			remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
-		with lock:
-			conn.send((
-				('image', count, skimage.io.imread(file)[:, :, :3]),
-				('mask', count, mask),
-				('class_id', count, np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8'))
-			))
-		count += 1
+		if ind:
+			mask = mask[:, :, ind]
+			for i in range(mask.shape[-1]):
+				remove_small_objects(mask[:, :, i], connectivity=2, in_place=True)
+			with lock:
+				conn.send((
+					file,
+					('image', skimage.io.imread(file)[:, :, :3]),
+					('mask', mask),
+					('class_id', np.array([uclasses.index(i) + 1 for i in classes[ind]], dtype='uint8'))
+				))
 	pbar.close()
 
 
 def writer(file, filters, conn, lock):
-	count = file.root.count[0]
-	while multiprocessing.active_children() or conn.poll(1):
-		for i in conn.recv():
-			category, id, value = i
-			id += count
-			arr = file.create_carray(file.root[category], '_' + str(id), obj=value, filters=filters)
+	count, polled, paths = file.root.count[0], True, []
+	while multiprocessing.active_children() or polled:
+		polled = conn.poll(1)
+		if polled:
+			path, *rest = conn.recv()
+			for i in rest:
+				category, value = i
+				arr = file.create_carray(file.root[category], '_' + str(count), obj=value, filters=filters)
+			paths.append(path)
+			count += 1
+	return paths
 
 
 if __name__ == '__main__':
@@ -105,9 +111,10 @@ if __name__ == '__main__':
 	conn_in, conn_out = multiprocessing.Pipe(False)
 
 	for i in range(args.processes):
-		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, i * pn, lock, conn_out)))
+		processes.append(start_process(worker, (i, files[i * pn:(i + 1) * pn], classes, file.root.classes[:], colors, lock, conn_out)))
 
-	writer(file, filters, conn_in, lock)
+	files = writer(file, filters, conn_in, lock)
+	count = len(files)
 
 	for i in processes:
 		print()
