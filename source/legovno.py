@@ -12,11 +12,13 @@ from model import Model
 from mrcnn import utils
 from mrcnn import config
 from mrcnn import visualize
-from camera import mask_image
+from camera import mask_image, random_colors
 import matplotlib.pyplot as plt
 
-def detect_and_splash(model, image):
+def detect_and_splash(model, image, colors=None):
 	result = model.detect(image)
+	if not colors:
+		colors = random_colors(model.config.NUM_CLASSES)
 	return mask_image(image, result['rois'], result['masks'], 
 		result['class_ids'], ['BG', '1x1', '1x2', '1x3'], result['scores'])
 
@@ -32,7 +34,7 @@ def splash_video(model, path, output_path):
 		vcapture.get(cv2.CAP_PROP_FPS), 
 		(int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(vcapture.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 	)
-	count, success = 0, True
+	count, success, colors = 0, True, random_colors(model.config.NUM_CLASSES)
 	while success:
 		success, image = vcapture.read()
 		if success:
