@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 def detect_and_splash(model, image):
 	result = model.detect(image)
-	return mask_image(image, result['rois'], result['mask'], 
+	return mask_image(image, result['rois'], result['masks'], 
 		result['class_ids'], ['BG', '1x1', '1x2', '1x3'], result['scores'])
 
 def splash_image(model, path, output_path):
@@ -38,7 +38,7 @@ def splash_video(model, path, output_path):
 		if success:
 			vwriter.write(detect_and_splash(model, image[..., ::-1])[..., ::-1])
 			count += 1
-			vwriter.release()
+	vwriter.release()
 
 def visualize_image(model, path):
 	plt.imshow(detect_and_splash(model, skimage.io.imread(path)))
