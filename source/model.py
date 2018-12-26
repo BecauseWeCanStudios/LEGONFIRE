@@ -1,5 +1,7 @@
 import os
+import keras
 import skimage.io
+import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
 from dataset import Dataset
@@ -60,4 +62,63 @@ class Model:
 		if not os.path.exists(self.COCO_WEIGHTS_PATH):
 			utils.download_trained_weights(self.COCO_WEIGHTS_PATH)
 		return self.COCO_WEIGHTS_PATH
+
+class PoseEstimationConfig:
+
+	BACKBONE = 'resnet18'
+	INPUT_SHAPE = (256, 256, 3)
+	SHARED_LAYERS = 1
+	SHARED_UNITS = 256
+	POSITION_LAYERS = 1
+	POSITION_UNITS = 256
+	ORIENTATION_LAYERS = 1
+	ORIENTATION_UNITS = 256
+	OPTIMIZER = keras.optimizers.Adam(1e-3)
+	LOSSES = 'categorical_crossentropy'
+
+
+class PoseEstimationModel():
+
+	BACKBONES = {
+		'resnet18': lambda input_shape: 
+			PoseEstimationModel.__resnet(input_shape, 'basic', [2, 2, 2, 2]),
+		'resnet34': lambda input_shape:
+			PoseEstimationModel.__resnet(input_shape, 'basic', [3, 4, 6, 3]),
+		'resnet50': lambda input_shape:
+			PoseEstimationModel.__resnet(input_shape, 'bottleneck', [3, 4, 6, 3]),
+		'xception': lambda input_shape:
+			keras.applications.xception.Xception(include_top=False, weights=None, input_shape=input_shape, classes=None)
+	}
+
+	def __init__(self, config):
+		shared_model = keras.models.Sequential()
+		shared_model.add(PoseEstimationModel.BACKBONES[config.BACKBONE](config.INPUT_SHAPE))
+		shared_model.add(keras.layers.Flatten())
+
+		for i in range(config.SHARED_LAYERS):
+			shared_model.add(keras.layers.Dense(config.SHARED_UNITS, activation='relu'))
+
+		model = keras.models.Model(inputs=[shared_model.input], outputs=[
+				PoseEstimationModel.__make_fc_layers(shared_model.output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
+				PoseEstimationModel.__make_fc_layers(shared_model.output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4)
+		])
+
+		model.compile(optimizer=config.OPTIMIZER, loss=config.LOSSES)
+
+		self.model = model
+
+	def train():
+		raise NotImplementedError()
+
+	@staticmethod
+	def __make_fc_layers(inputs, count, units, last_units):
+		assert count > 0
+		for i in range(count - 1):
+			inputs = keras.layers.Dense(units, activation='relu')(inputs)
+		return keras.layers.Dense(last_units)(inputs)
+
+	@staticmethod
+	def __resnet(input_shape, block, repetitions):
+		return keras_contrib.applications.resnet.ResNet(input_shape, None, block, repetitions=repetitions, include_top=False)
+		
 
