@@ -83,7 +83,7 @@ if __name__ == '__main__':
 	parser.add_argument('--save_path', action='store_true', help='Save image path')
 	args = parser.parse_args()
 
-	assert args.train <= 1, 'Train weight must be in range [0, 1]'
+	assert 0 <= args.train <= 1, 'Train weight must be in range [0, 1]'
 
 	classes = np.array([i.encode('ascii') for i in json.load(open(os.path.join(args.directory, args.classes)))])
 	colors = np.array([i for i in range(1, len(classes) + 1)], dtype='uint8')
