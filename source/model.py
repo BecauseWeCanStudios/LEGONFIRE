@@ -5,6 +5,8 @@ import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
 from dataset import Dataset
+import numpy as np
+import keras.backend as K
 import mrcnn.model as modellib
 
 class Config(config.Config):
@@ -76,11 +78,25 @@ class PoseEstimationConfig:
 	OPTIMIZER = keras.optimizers.Adam(1e-3)
 	LOSSES = 'categorical_crossentropy'
 
+class ActivationLayer(keras.engine.topology.Layer):
+
+	def __init__(self, **kwargs):
+		super(ActivationLayer, self).__init__(**kwargs)
+
+	def build(self, input_shape):
+		super(ActivationLayer, self).build(input_shape)
+
+	def call(self, x):
+		return x / K.sqrt(K.sum(K.pow(x, 2)))
+
+	def compute_output_shape(self, input_shape):
+		return (input_shape[0], 4)
+
 
 class PoseEstimationModel():
 
 	BACKBONES = {
-		'resnet18': lambda input_shape: 
+		'resnet18': lambda input_shape:
 			PoseEstimationModel.__resnet(input_shape, 'basic', [2, 2, 2, 2]),
 		'resnet34': lambda input_shape:
 			PoseEstimationModel.__resnet(input_shape, 'basic', [3, 4, 6, 3]),
@@ -100,7 +116,7 @@ class PoseEstimationModel():
 
 		model = keras.models.Model(inputs=[shared_model.input], outputs=[
 				PoseEstimationModel.__make_fc_layers(shared_model.output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
-				PoseEstimationModel.__make_fc_layers(shared_model.output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4)
+				ActivationLayer()(PoseEstimationModel.__make_fc_layers(shared_model.output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4))
 		])
 
 		model.compile(optimizer=config.OPTIMIZER, loss=config.LOSSES)
