@@ -2,7 +2,7 @@ opencv-python
 tables
 scikit-image
 numpy
-mrcnn
+git+https://github.com/matterport/Mask_RCNN.git
 matplotlib
 randomcolor
 tensorflow>=1.3.0
