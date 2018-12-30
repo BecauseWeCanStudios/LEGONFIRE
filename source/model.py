@@ -4,7 +4,7 @@ import skimage.io
 import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
-from dataset import Dataset
+from dataset import Dataset, PoseEstimationDataset
 import numpy as np
 import keras.backend as K
 import mrcnn.model as modellib
@@ -65,19 +65,6 @@ class Model:
 			utils.download_trained_weights(self.COCO_WEIGHTS_PATH)
 		return self.COCO_WEIGHTS_PATH
 
-class PoseEstimationConfig:
-
-	BACKBONE = 'resnet18'
-	INPUT_SHAPE = (256, 256, 3)
-	SHARED_LAYERS = 1
-	SHARED_UNITS = 256
-	POSITION_LAYERS = 1
-	POSITION_UNITS = 256
-	ORIENTATION_LAYERS = 1
-	ORIENTATION_UNITS = 256
-	OPTIMIZER = keras.optimizers.Adam(1e-3)
-	LOSSES = 'categorical_crossentropy'
-
 class ActivationLayer(keras.engine.topology.Layer):
 
 	def __init__(self, **kwargs):
@@ -92,6 +79,28 @@ class ActivationLayer(keras.engine.topology.Layer):
 	def compute_output_shape(self, input_shape):
 		return (input_shape[0], 4)
 
+def PoseEstimationLoss(y_true, y_pred):
+    return K.sqrt(K.sum(K.square(y_true - y_pred), axis=-1, keepdims=True))
+
+class PoseEstimationConfig:
+
+	BACKBONE = 'resnet18'
+	INPUT_SHAPE = (750, 1000, 1)
+	SHARED_LAYERS = 1
+	SHARED_UNITS = 256
+	POSITION_LAYERS = 1
+	POSITION_UNITS = 256
+	ORIENTATION_LAYERS = 1
+	ORIENTATION_UNITS = 256
+	BATCH_SIZE = 1
+	VALIDATION_BATCH_SIZE = 1
+	OPTIMIZER = keras.optimizers.Adam(1e-3)
+	LOSSES = [PoseEstimationLoss, PoseEstimationLoss]
+	LOSS_WEIGHTS = [1, 1]
+	SAVE_WEIGHTS_PATH = './logs'
+	SAVE_PERIOD = 1
+	STEPS_PER_EPOCH = None
+	VALIDATION_STEPS = None
 
 class PoseEstimationModel():
 
@@ -119,12 +128,30 @@ class PoseEstimationModel():
 				ActivationLayer()(PoseEstimationModel.__make_fc_layers(shared_model.output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4))
 		])
 
-		model.compile(optimizer=config.OPTIMIZER, loss=config.LOSSES)
+		model.compile(optimizer=config.OPTIMIZER, loss=config.LOSSES, loss_weights=config.LOSS_WEIGHTS,)
 
-		self.model = model
+		self.model, self.config = model, config
 
-	def train():
-		raise NotImplementedError()
+	def train(self, data, epochs):
+		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE)
+		test_dataset = PoseEstimationDataset(data.root.test[:], data, 
+			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
+		save_best = keras.callbacks.ModelCheckpoint(
+			os.path.join(self.config.SAVE_WEIGHTS_PATH, 'weights.{epoch:04d}.hdf5'), 
+			verbose=0, 
+			save_weights_only=True, 
+			period=self.config.SAVE_PERIOD
+		)
+		self.model.fit_generator(
+			train_dataset, 
+			validation_data=test_dataset,
+			steps_per_epoch=self.config.STEPS_PER_EPOCH, 
+			epochs=epochs, 
+			callbacks=[save_best], 
+			shuffle=False, 
+			workers=0,
+			validation_steps=self.config.VALIDATION_STEPS
+		)
 
 	@staticmethod
 	def __make_fc_layers(inputs, count, units, last_units):

@@ -8,7 +8,7 @@ import argparse
 import skimage.io
 import numpy as np
 import mrcnn.model as modellib
-from model import Model
+from model import Model, PoseEstimationModel, PoseEstimationConfig
 from mrcnn import utils
 from mrcnn import config
 from mrcnn import visualize
@@ -52,6 +52,10 @@ OPERATIONS = {
 					args.epochs, 
 					args.learning_rate
 				),
+	'train_pose': lambda model, args: model.train(
+					tables.open_file(args.dataset, mode='r'),
+					args.epochs
+				),
 	'image': lambda model, args: splash_image(model, args.input, args.output),
 	'video': lambda model, args: splash_video(model, args.input, args.output),
 	'visualize': lambda model, args: visualize_image(model, args.input),
@@ -60,7 +64,7 @@ OPERATIONS = {
 
 parser = argparse.ArgumentParser(description='Program ti die yourself')
 parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
-	choices=('train', 'image', 'video', 'camera', 'visualize'))
+	choices=('train', 'image', 'video', 'camera', 'visualize', 'train_pose'))
 parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing dataset', type=str, default='dataset.hdf5')
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)
@@ -70,10 +74,13 @@ parser.add_argument('-i', '--input', help='Path or URL to image or video', type=
 parser.add_argument('-o', '--output', help='Path to output directory', type=str)
 args = parser.parse_args()
 
-if args.operation != 'splash_camera' and args.operation != 'train':
+if args.operation not in  ['camera', 'train', 'train_pose']:
 	assert args.input, "Provide --input to apply color splash"
 
-model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)
-model.config.display()
+if args.operation == 'train_pose':
+	model = PoseEstimationModel(PoseEstimationConfig())
+else:
+	model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)
+	model.config.display()
 
 OPERATIONS[args.operation](model, args)

@@ -43,11 +43,15 @@ with tqdm(total=sum(i.shape[0] for i in posestxt)) as pbar:
 		for path in files:
 			img = skimage.io.imread(path)
 			if img.any():
+				img = img.reshape((*img.shape, 1))
 				p = pose[int(os.path.splitext(os.path.basename(path))[0])]
+				position, orientation = p[:3], p[3:]
+				if orientation[0] < 0:
+					orientation *= -1
 				id = '_' + str(count)
 				file.create_carray(file.root.image, id, obj=img, filters=filters)
-				file.create_carray(file.root.position, id, obj=p[:3], filters=filters)
-				file.create_carray(file.root.orientation, id, obj=p[3:], filters=filters)
+				file.create_carray(file.root.position, id, obj=position, filters=filters)
+				file.create_carray(file.root.orientation, id, obj=orientation, filters=filters)
 				count += 1
 			else:
 				skipped += 1
