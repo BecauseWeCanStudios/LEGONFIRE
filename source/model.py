@@ -4,6 +4,7 @@ import skimage.io
 import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
+from metrics import MeshMetric, QuaternionDistanceMetric
 from dataset import Dataset, PoseEstimationDataset
 import numpy as np
 import keras.backend as K
@@ -79,26 +80,24 @@ class ActivationLayer(keras.engine.topology.Layer):
 	def compute_output_shape(self, input_shape):
 		return (input_shape[0], 4)
 
-def PoseEstimationLoss(y_true, y_pred):
-    return K.sqrt(K.sum(K.square(y_true - y_pred), axis=-1, keepdims=True))
 
 class PoseEstimationConfig:
 
 	BACKBONE = 'resnet18'
-	INPUT_SHAPE = (750, 1000, 1)
-	SHARED_LAYERS = 1
-	SHARED_UNITS = 256
-	POSITION_LAYERS = 1
-	POSITION_UNITS = 256
-	ORIENTATION_LAYERS = 1
-	ORIENTATION_UNITS = 256
-	BATCH_SIZE = 1
+	INPUT_SHAPE = (300, 400, 1)
+	SHARED_LAYERS = 0
+	SHARED_UNITS = 512
+	POSITION_LAYERS = 3
+	POSITION_UNITS = 512
+	ORIENTATION_LAYERS = 2
+	ORIENTATION_UNITS = 1024
+	BATCH_SIZE = 32
 	VALIDATION_BATCH_SIZE = 1
-	OPTIMIZER = keras.optimizers.Adam(1e-3)
-	LOSSES = [PoseEstimationLoss, PoseEstimationLoss]
-	LOSS_WEIGHTS = [1, 1]
+	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
+	LOSSES = [MeshMetric(['1x1.obj', '1x2.obj', '1x3.obj'])]
+	METRICS = [QuaternionDistanceMetric()]
 	SAVE_WEIGHTS_PATH = './logs'
-	SAVE_PERIOD = 1
+	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None
 	VALIDATION_STEPS = None
 
@@ -116,19 +115,23 @@ class PoseEstimationModel():
 	}
 
 	def __init__(self, config):
-		shared_model = keras.models.Sequential()
-		shared_model.add(PoseEstimationModel.BACKBONES[config.BACKBONE](config.INPUT_SHAPE))
-		shared_model.add(keras.layers.Flatten())
+		backbone = PoseEstimationModel.BACKBONES[config.BACKBONE](config.INPUT_SHAPE)
+		output = backbone.output
+		output = keras.layers.Flatten()(output)
 
 		for i in range(config.SHARED_LAYERS):
-			shared_model.add(keras.layers.Dense(config.SHARED_UNITS, activation='relu'))
+			outputs = keras.layers.Dense(keras.layers.Dense(config.SHARED_UNITS, activation='relu'))(output)
 
-		model = keras.models.Model(inputs=[shared_model.input], outputs=[
-				PoseEstimationModel.__make_fc_layers(shared_model.output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
-				ActivationLayer()(PoseEstimationModel.__make_fc_layers(shared_model.output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4))
-		])
+		model = keras.models.Model(inputs=backbone.input, outputs=keras.layers.concatenate([
+				PoseEstimationModel.__make_fc_layers(output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
+				ActivationLayer()(PoseEstimationModel.__make_fc_layers(output, config.ORIENTATION_LAYERS, config.ORIENTATION_UNITS, 4))
+		]))
 
-		model.compile(optimizer=config.OPTIMIZER, loss=config.LOSSES, loss_weights=config.LOSS_WEIGHTS,)
+		model.compile(
+			optimizer=config.OPTIMIZER, 
+			loss=config.LOSSES,
+			metrics=config.METRICS
+		)
 
 		self.model, self.config = model, config
 
@@ -136,21 +139,27 @@ class PoseEstimationModel():
 		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE)
 		test_dataset = PoseEstimationDataset(data.root.test[:], data, 
 			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
+
 		save_best = keras.callbacks.ModelCheckpoint(
 			os.path.join(self.config.SAVE_WEIGHTS_PATH, 'weights.{epoch:04d}.hdf5'), 
 			verbose=0, 
 			save_weights_only=True, 
 			period=self.config.SAVE_PERIOD
 		)
+
+		reduce_lr = keras.callbacks.ReduceLROnPlateau(
+			monitor='loss', factor=0.2,
+            patience=5, min_lr=0.00001)
+
 		self.model.fit_generator(
 			train_dataset, 
 			validation_data=test_dataset,
 			steps_per_epoch=self.config.STEPS_PER_EPOCH, 
 			epochs=epochs, 
-			callbacks=[save_best], 
-			shuffle=False, 
+			callbacks=[save_best, reduce_lr], 
+			shuffle=True, 
 			workers=0,
-			validation_steps=self.config.VALIDATION_STEPS
+			validation_steps=self.config.VALIDATION_STEPS,
 		)
 
 	@staticmethod
@@ -163,5 +172,3 @@ class PoseEstimationModel():
 	@staticmethod
 	def __resnet(input_shape, block, repetitions):
 		return keras_contrib.applications.resnet.ResNet(input_shape, None, block, repetitions=repetitions, include_top=False)
-		
-

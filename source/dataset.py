@@ -56,9 +56,4 @@ class PoseEstimationDataset(keras.utils.Sequence):
 
 	def __getitem__(self, index):
 		ids = self.ids[index * self.batch_size : (index + 1) * self.batch_size]
-		return \
-				self.__get_data__(self.data.image, ids), \
-				[
-					self.__get_data__(self.data.position, ids), 
-					self.__get_data__(self.data.orientation, ids)
-				]
+		return self.__get_data__(self.data.image, ids), self.__get_data__(self.data.val, ids)
