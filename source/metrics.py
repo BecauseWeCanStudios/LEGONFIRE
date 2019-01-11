@@ -1,6 +1,7 @@
 import trimesh  
 import numpy as np
 import keras.backend as K
+from math import pi
 
 def cross(a, b):
 	a1, a2, a3 = a[..., 0], a[..., 1], a[..., 2]
@@ -9,10 +10,20 @@ def cross(a, b):
 
 def rotate_vector_by_quaternion(q, v):
 		w, q = q[..., 0], q[..., 1:]
-		print(v.shape)
 		return 2 * K.expand_dims(K.batch_dot(v, q), 2) * K.expand_dims(q, 1) + \
 				K.expand_dims(K.expand_dims(K.pow(w, 2), -1) - K.batch_dot(q, q, axes=1), 2) * v + \
 				2 * K.repeat_elements(K.expand_dims(K.expand_dims(w, -1), -1), 3, axis=-1) * cross(K.expand_dims(q, 1), v)
+
+def acos(x):
+	negate = K.cast(x < 0, 'float32')
+	x = K.abs(x)
+	ret = K.zeros_like(x)
+	for i in (-0.0187293, 0.0742610, -0.2121144, 1.5707288):
+		ret += i
+		ret *= x
+	ret *= K.sqrt(1 - x)
+	ret -= 2 * negate * ret
+	return negate * pi + ret
 
 def MeshMetric(models):
 	meshes = [trimesh.load(i) for i in models]
@@ -39,5 +50,12 @@ def QuaternionDistanceMetric():
 
 	def metric(y_true, y_pred):
 		return K.clip(1 - K.square(y_true[..., 3:-1] * y_pred[..., 3:]), 0, 1)
+
+	return metric
+
+def QuaternionAngleMetric():
+
+	def metric(y_true, y_pred):
+		return acos(K.clip(2 * K.square(y_true[..., 3:-1] * y_pred[..., 3:]) - 1, -1, 1)) / pi * 180
 
 	return metric

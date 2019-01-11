@@ -4,8 +4,8 @@ import skimage.io
 import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
-from metrics import MeshMetric, QuaternionDistanceMetric
 from dataset import Dataset, PoseEstimationDataset
+from metrics import MeshMetric, QuaternionDistanceMetric, QuaternionAngleMetric
 import numpy as np
 import keras.backend as K
 import mrcnn.model as modellib
@@ -95,7 +95,7 @@ class PoseEstimationConfig:
 	VALIDATION_BATCH_SIZE = 1
 	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
 	LOSSES = [MeshMetric(['1x1.obj', '1x2.obj', '1x3.obj'])]
-	METRICS = [QuaternionDistanceMetric()]
+	METRICS = [QuaternionDistanceMetric(), QuaternionAngleMetric()]
 	SAVE_WEIGHTS_PATH = './logs'
 	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None
@@ -120,7 +120,7 @@ class PoseEstimationModel():
 		output = keras.layers.Flatten()(output)
 
 		for i in range(config.SHARED_LAYERS):
-			outputs = keras.layers.Dense(keras.layers.Dense(config.SHARED_UNITS, activation='relu'))(output)
+			outputs = keras.layers.Dense(config.SHARED_UNITS, activation='relu')(output)
 
 		model = keras.models.Model(inputs=backbone.input, outputs=keras.layers.concatenate([
 				PoseEstimationModel.__make_fc_layers(output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
