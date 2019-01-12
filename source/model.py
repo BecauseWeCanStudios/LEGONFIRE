@@ -96,7 +96,6 @@ class PoseEstimationConfig:
 	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
 	LOSSES = [MeshMetric(['1x1.obj', '1x2.obj', '1x3.obj'])]
 	METRICS = [QuaternionDistanceMetric(), QuaternionAngleMetric(), DistanceMetric()]
-	SAVE_WEIGHTS_PATH = './logs'
 	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None
 	VALIDATION_STEPS = None
@@ -114,7 +113,11 @@ class PoseEstimationModel():
 			keras.applications.xception.Xception(include_top=False, weights=None, input_shape=input_shape, classes=None)
 	}
 
-	def __init__(self, config):
+	def __init__(self, config, weights=None, logs='./logs'):
+
+		if not os.path.exists(logs):
+			os.makedirs(logs)
+
 		backbone = PoseEstimationModel.BACKBONES[config.BACKBONE](config.INPUT_SHAPE)
 		output = backbone.output
 		output = keras.layers.Flatten()(output)
@@ -133,7 +136,10 @@ class PoseEstimationModel():
 			metrics=config.METRICS
 		)
 
-		self.model, self.config = model, config
+		if weights:
+			model.load_weights(weights)
+
+		self.model, self.config, self.logs = model, config, logs
 
 	def train(self, data, epochs):
 		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE)
@@ -141,7 +147,7 @@ class PoseEstimationModel():
 			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
 
 		save_best = keras.callbacks.ModelCheckpoint(
-			os.path.join(self.config.SAVE_WEIGHTS_PATH, 'weights.{epoch:04d}.hdf5'), 
+			os.path.join(self.logs, 'weights.{epoch:04d}.hdf5'), 
 			verbose=0, 
 			save_weights_only=True, 
 			period=self.config.SAVE_PERIOD

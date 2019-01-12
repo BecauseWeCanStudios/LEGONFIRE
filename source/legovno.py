@@ -66,7 +66,7 @@ parser = argparse.ArgumentParser(description='Program ti die yourself')
 parser.add_argument('operation', metavar='OP', help='Operation to be executed', 
 	choices=('train', 'image', 'video', 'camera', 'visualize', 'train_pose'))
 parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing dataset', type=str, default='dataset.hdf5')
-parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str, default='coco')
+parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str)
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)
 parser.add_argument('-e', '--epochs', help='Number of epochs', type=int, default=30)
 parser.add_argument('--logs', help='Logs file', default='./logs', type=str)
@@ -78,7 +78,7 @@ if args.operation not in  ['camera', 'train', 'train_pose']:
 	assert args.input, "Provide --input to apply color splash"
 
 if args.operation == 'train_pose':
-	model = PoseEstimationModel(PoseEstimationConfig())
+	model = PoseEstimationModel(PoseEstimationConfig(), weights=args.weights, logs=args.logs)
 else:
 	model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)
 	model.config.display()
