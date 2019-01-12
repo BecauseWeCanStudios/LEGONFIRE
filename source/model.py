@@ -5,7 +5,7 @@ import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
 from dataset import Dataset, PoseEstimationDataset
-from metrics import MeshMetric, QuaternionDistanceMetric, QuaternionAngleMetric
+from metrics import MeshMetric, QuaternionDistanceMetric, QuaternionAngleMetric, DistanceMetric
 import numpy as np
 import keras.backend as K
 import mrcnn.model as modellib
@@ -95,7 +95,7 @@ class PoseEstimationConfig:
 	VALIDATION_BATCH_SIZE = 1
 	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
 	LOSSES = [MeshMetric(['1x1.obj', '1x2.obj', '1x3.obj'])]
-	METRICS = [QuaternionDistanceMetric(), QuaternionAngleMetric()]
+	METRICS = [QuaternionDistanceMetric(), QuaternionAngleMetric(), DistanceMetric()]
 	SAVE_WEIGHTS_PATH = './logs'
 	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None

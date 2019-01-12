@@ -48,14 +48,21 @@ def MeshMetric(models):
 
 def QuaternionDistanceMetric():
 
-	def metric(y_true, y_pred):
+	def quaternion_distance(y_true, y_pred):
 		return K.clip(1 - K.square(y_true[..., 3:-1] * y_pred[..., 3:]), 0, 1)
 
-	return metric
+	return quaternion_distance
 
 def QuaternionAngleMetric():
 
-	def metric(y_true, y_pred):
+	def quaternion_angle(y_true, y_pred):
 		return acos(K.clip(2 * K.square(y_true[..., 3:-1] * y_pred[..., 3:]) - 1, -1, 1)) / pi * 180
 
-	return metric
+	return quaternion_angle
+
+def DistanceMetric():
+
+	def distance(y_true, y_pred):
+		return K.sqrt(K.sum(K.square(y_true[..., :3] - y_pred[..., :3]), axis=-1))
+
+	return distance
