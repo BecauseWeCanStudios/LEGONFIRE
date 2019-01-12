@@ -157,12 +157,14 @@ class PoseEstimationModel():
 			monitor='loss', factor=0.2,
             patience=5, min_lr=0.00001)
 
+		tensorboard = keras.callbacks.TensorBoard(log_dir=self.logs)
+
 		self.model.fit_generator(
 			train_dataset, 
 			validation_data=test_dataset,
 			steps_per_epoch=self.config.STEPS_PER_EPOCH, 
 			epochs=epochs, 
-			callbacks=[save_best, reduce_lr], 
+			callbacks=[save_best, reduce_lr, tensorboard], 
 			shuffle=True, 
 			workers=0,
 			validation_steps=self.config.VALIDATION_STEPS,
