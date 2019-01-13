@@ -149,7 +149,7 @@ class PoseEstimationModel():
 
 		self.model, self.config, self.logs = model, config, logs
 
-	def train(self, data, epochs):
+	def train(self, data, epochs, initial_epoch):
 		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE, self.config.AUGMENTER)
 		test_dataset = PoseEstimationDataset(data.root.test[:], data, 
 			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
@@ -176,6 +176,7 @@ class PoseEstimationModel():
 			shuffle=True, 
 			workers=0,
 			validation_steps=self.config.VALIDATION_STEPS,
+			initial_epoch=initial_epoch
 		)
 
 	@staticmethod

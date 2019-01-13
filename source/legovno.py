@@ -54,7 +54,8 @@ OPERATIONS = {
 				),
 	'train_pose': lambda model, args: model.train(
 					tables.open_file(args.dataset, mode='r'),
-					args.epochs
+					args.epochs,
+					args.initial_epoch
 				),
 	'image': lambda model, args: splash_image(model, args.input, args.output),
 	'video': lambda model, args: splash_video(model, args.input, args.output),
@@ -69,6 +70,7 @@ parser.add_argument('-d', '--dataset', help='Path to HDF5 file containing datase
 parser.add_argument('-w', '--weights', help='Path to .h5 weights file', type=str)
 parser.add_argument('-l', '--learning_rate', help='Learning rate', type=float, default=1e-3)
 parser.add_argument('-e', '--epochs', help='Number of epochs', type=int, default=30)
+parser.add_argument('--initial_epoch', help='Initial epoch', type=int, default=0)
 parser.add_argument('--logs', help='Logs file', default='./logs', type=str)
 parser.add_argument('-i', '--input', help='Path or URL to image or video', type=str)
 parser.add_argument('-o', '--output', help='Path to output directory', type=str)
@@ -78,7 +80,7 @@ if args.operation not in  ['camera', 'train', 'train_pose']:
 	assert args.input, "Provide --input to apply color splash"
 
 if args.operation == 'train_pose':
-	model = PoseEstimationModel(PoseEstimationConfig(), weights=args.weights, logs=args.logs)
+	model = PoseEstimationModel(weights=args.weights, logs=args.logs)
 else:
 	model = Model(args.weights, Model.TRAIN if args.operation == 'train' else Model.INFERENCE, logs=args.logs)
 	model.config.display()
