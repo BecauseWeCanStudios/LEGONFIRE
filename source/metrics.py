@@ -18,9 +18,10 @@ def acos(x):
 	negate = K.cast(x < 0, 'float32')
 	x = K.abs(x)
 	ret = K.zeros_like(x)
-	for i in (-0.0187293, 0.0742610, -0.2121144, 1.5707288):
+	for i in (-0.0187293, 0.0742610, -0.2121144):
 		ret += i
 		ret *= x
+	ret += 1.5707288
 	ret *= K.sqrt(1 - x)
 	ret -= 2 * negate * ret
 	return negate * pi + ret
@@ -49,14 +50,14 @@ def MeshMetric(models):
 def QuaternionDistanceMetric():
 
 	def quaternion_distance(y_true, y_pred):
-		return K.clip(1 - K.square(y_true[..., 3:-1] * y_pred[..., 3:]), 0, 1)
+		return K.clip(1 - K.square(K.sum(y_true[..., 3:-1] * y_pred[..., 3:], axis=-1)), 0, 1)
 
 	return quaternion_distance
 
 def QuaternionAngleMetric():
 
 	def quaternion_angle(y_true, y_pred):
-		return acos(K.clip(2 * K.square(y_true[..., 3:-1] * y_pred[..., 3:]) - 1, -1, 1)) / pi * 180
+		return acos(K.clip(2 * K.square(K.sum(y_true[..., 3:-1] * y_pred[..., 3:], axis=-1)) - 1, -1, 1)) / pi * 180
 
 	return quaternion_angle
 
