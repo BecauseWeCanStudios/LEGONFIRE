@@ -4,6 +4,7 @@ import skimage.io
 import keras_contrib.applications
 from mrcnn import utils
 from mrcnn import config
+from imgaug import augmenters as iaa
 from dataset import Dataset, PoseEstimationDataset
 from metrics import MeshMetric, QuaternionDistanceMetric, QuaternionAngleMetric, DistanceMetric
 import numpy as np
@@ -85,10 +86,10 @@ class PoseEstimationConfig:
 
 	BACKBONE = 'resnet18'
 	INPUT_SHAPE = (300, 400, 1)
-	SHARED_LAYERS = 0
-	SHARED_UNITS = 512
-	POSITION_LAYERS = 3
-	POSITION_UNITS = 512
+	SHARED_LAYERS = 1
+	SHARED_UNITS = 1024
+	POSITION_LAYERS = 2
+	POSITION_UNITS = 1024
 	ORIENTATION_LAYERS = 2
 	ORIENTATION_UNITS = 1024
 	BATCH_SIZE = 32
@@ -99,6 +100,10 @@ class PoseEstimationConfig:
 	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None
 	VALIDATION_STEPS = None
+	AUGMENTER = iaa.Sequential([
+			iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 3))),
+			iaa.Multiply((0.5, 1.5))
+		], random_order=True)
 
 class PoseEstimationModel():
 
@@ -113,7 +118,10 @@ class PoseEstimationModel():
 			keras.applications.xception.Xception(include_top=False, weights=None, input_shape=input_shape, classes=None)
 	}
 
-	def __init__(self, config, weights=None, logs='./logs'):
+	def __init__(self, config=None, weights=None, logs='./logs'):
+
+		if not config:
+			config = PoseEstimationConfig()
 
 		if not os.path.exists(logs):
 			os.makedirs(logs)
@@ -142,7 +150,7 @@ class PoseEstimationModel():
 		self.model, self.config, self.logs = model, config, logs
 
 	def train(self, data, epochs):
-		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE)
+		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE, self.config.AUGMENTER)
 		test_dataset = PoseEstimationDataset(data.root.test[:], data, 
 			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
 

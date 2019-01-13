@@ -11,3 +11,4 @@ git+https://www.github.com/keras-team/keras-contrib.git
 tqdm
 Pillow
 ffmpeg
+imgaug

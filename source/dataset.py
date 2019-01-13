@@ -43,9 +43,10 @@ class Dataset(utils.Dataset):
 
 class PoseEstimationDataset(keras.utils.Sequence):
 
-	def __init__(self, ids, data, batch_size):
+	def __init__(self, ids, data, batch_size, augmenter=None):
 		self.ids, self.data, self.batch_size = list(map(lambda x: '_' + str(x), ids)), data.root, batch_size
 		self.len = int(np.ceil(len(self.ids) / batch_size))
+		self.augmenter = augmenter
 
 	def __len__(self):
 		return self.len
@@ -56,4 +57,5 @@ class PoseEstimationDataset(keras.utils.Sequence):
 
 	def __getitem__(self, index):
 		ids = self.ids[index * self.batch_size : (index + 1) * self.batch_size]
-		return self.__get_data__(self.data.image, ids), self.__get_data__(self.data.val, ids)
+		imgs = self.__get_data__(self.data.image, ids)
+		return self.augmenter.augment_images(imgs) if self.augmenter else imgs, self.__get_data__(self.data.val, ids)
