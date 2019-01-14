@@ -2,11 +2,11 @@ import os
 import keras
 import skimage.io
 import keras_contrib.applications
+from metrics import *
 from mrcnn import utils
 from mrcnn import config
 from imgaug import augmenters as iaa
 from dataset import Dataset, PoseEstimationDataset
-from metrics import MeshMetric, QuaternionDistanceMetric, QuaternionAngleMetric, DistanceMetric
 import numpy as np
 import keras.backend as K
 import mrcnn.model as modellib
@@ -95,15 +95,33 @@ class PoseEstimationConfig:
 	BATCH_SIZE = 32
 	VALIDATION_BATCH_SIZE = 1
 	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
-	LOSSES = [MeshMetric(['1x1.obj', '1x2.obj', '1x3.obj'])]
-	METRICS = [QuaternionDistanceMetric(), QuaternionAngleMetric(), DistanceMetric()]
+	LOSSES = [
+		MeshLoss(
+			['1x1.obj', '1x2.obj', '1x3.obj'],
+			SequentialLoss(
+				[
+					RotationTransform(extract_quaternion),
+					OffsetTransform(extract_offset)
+				],
+				DiffMean
+			)
+		)
+	]
+	METRICS = [
+		QuaternionDistanceMetric(extract_quaternion),
+		QuaternionAngleMetric(extract_quaternion),
+		DistanceMetric(extract_offset)
+	]
 	SAVE_PERIOD = 10
 	STEPS_PER_EPOCH = None
 	VALIDATION_STEPS = None
-	AUGMENTER = iaa.Sequential([
+	AUGMENTER = iaa.Sequential(
+		[
 			iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 3))),
 			iaa.Multiply((0.5, 1.5))
-		], random_order=True)
+		],
+		random_order=True
+	)
 
 class PoseEstimationModel():
 
@@ -149,7 +167,7 @@ class PoseEstimationModel():
 
 		self.model, self.config, self.logs = model, config, logs
 
-	def train(self, data, epochs, initial_epoch):
+	def train(self, data, epochs, initial_epoch=0):
 		train_dataset = PoseEstimationDataset(data.root.train[:], data, self.config.BATCH_SIZE, self.config.AUGMENTER)
 		test_dataset = PoseEstimationDataset(data.root.test[:], data, 
 			self.config.BATCH_SIZE if self.config.BATCH_SIZE else self.config.VALIDATION_BATCH_SIZE)
