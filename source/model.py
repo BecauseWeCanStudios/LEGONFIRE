@@ -76,7 +76,7 @@ class ActivationLayer(keras.engine.topology.Layer):
 		super(ActivationLayer, self).build(input_shape)
 
 	def call(self, x):
-		return x / K.sqrt(K.sum(K.pow(x, 2)))
+		return x / K.expand_dims(K.sqrt(K.sum(K.square(x), axis=-1)))
 
 	def compute_output_shape(self, input_shape):
 		return (input_shape[0], 4)
