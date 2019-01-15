@@ -149,7 +149,7 @@ class PoseEstimationModel():
 		output = keras.layers.Flatten()(output)
 
 		for i in range(config.SHARED_LAYERS):
-			outputs = keras.layers.Dense(config.SHARED_UNITS, activation='relu')(output)
+			output = keras.layers.Dense(config.SHARED_UNITS, activation='relu')(output)
 
 		model = keras.models.Model(inputs=backbone.input, outputs=keras.layers.concatenate([
 				PoseEstimationModel.__make_fc_layers(output, config.POSITION_LAYERS, config.POSITION_UNITS, 3), 
