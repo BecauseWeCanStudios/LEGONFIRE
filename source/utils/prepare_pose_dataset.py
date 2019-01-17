@@ -11,6 +11,7 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser(description='Prepare pose dataset')
 parser.add_argument('directory', metavar='DIR', help='Path to dataset', type=str)
 parser.add_argument('-f', '--file', type=str, default='dataset.hdf5', help='HDF5 dataset file', metavar='F')
+parser.add_argument('-t', '--threshold', type=int, default=150, help='Minimum non-black pixel count', metavar='T')
 parser.add_argument('--train', metavar='P', help='Train weight', type=float, default=0.8)
 parser.add_argument('--complevel', type=int, default=9, help='Compression level', metavar='L')
 parser.add_argument('--complib', type=str, default='blosc:lz4hc', help='Compression library', metavar='L')
@@ -27,7 +28,6 @@ filters = tables.Filters(complevel=args.complevel, complib=args.complib)
 file = utils.open_or_create_dataset_file(args.file, filters, ('image', 'val'), False)
 
 count = file.root.count[0]
-skipped = 0
 
 with tqdm(total=sum(i.shape[0] for i in posestxt)) as pbar:
 	for pose_path, pose, files in zip(poses, posestxt, images):
@@ -36,14 +36,17 @@ with tqdm(total=sum(i.shape[0] for i in posestxt)) as pbar:
 		class_id = args.classes.index(os.path.split(dirname)[1])
 		for path in files:
 			img = skimage.io.imread(path)
-			if img.any():
+			if np.count_nonzero(img) >= args.threshold:
 				img = img.reshape((*img.shape, 1))
 				id = '_' + str(count)
 				file.create_carray(file.root.image, id, obj=img, filters=filters)
-				file.create_carray(file.root.val, id, obj=np.concatenate([pose[int(os.path.splitext(os.path.basename(path))[0])], [class_id]]))
+				file.create_carray(
+					file.root.val,
+					id,
+					obj=np.concatenate([pose[int(os.path.splitext(os.path.basename(path))[0])], [class_id]]), 
+					filters=filters
+				)
 				count += 1
-			else:
-				skipped += 1
 			pbar.update(1)
 
 utils.split_dataset(file, count - file.root.count[0], args.train)
