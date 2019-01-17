@@ -197,6 +197,12 @@ class PoseEstimationModel():
 			initial_epoch=initial_epoch
 		)
 
+	def predict(self, images, batch_size=1, verbose=0):
+		return self.model.predict(images, batch_size=batch_size, verbose=verbose)
+
+	def evaluate(self, images, y, batch_size=1, verbose=0):
+		return self.model.evaluate(images, y, batch_size=batch_size, verbose=verbose)
+
 	@staticmethod
 	def __make_fc_layers(inputs, count, units, last_units):
 		assert count > 0
