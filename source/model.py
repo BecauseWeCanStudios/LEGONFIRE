@@ -86,18 +86,18 @@ class PoseEstimationConfig:
 
 	BACKBONE = 'resnet18'
 	INPUT_SHAPE = (300, 400, 1)
-	SHARED_LAYERS = 1
+	SHARED_LAYERS = 0
 	SHARED_UNITS = 1024
-	POSITION_LAYERS = 2
+	POSITION_LAYERS = 0
 	POSITION_UNITS = 1024
-	ORIENTATION_LAYERS = 2
+	ORIENTATION_LAYERS = 0
 	ORIENTATION_UNITS = 1024
 	BATCH_SIZE = 32
 	VALIDATION_BATCH_SIZE = 1
 	OPTIMIZER = keras.optimizers.Adam(lr=1e-3)
 	LOSSES = [
 		MeshLoss(
-			['1x1.obj', '1x2.obj', '1x3.obj'],
+			['../models/1x1.obj', '../models/1x2.obj', '../models/1x3.obj'],
 			SequentialLoss(
 				[
 					RotationTransform(extract_quaternion),
@@ -205,7 +205,6 @@ class PoseEstimationModel():
 
 	@staticmethod
 	def __make_fc_layers(inputs, count, units, last_units):
-		assert count > 0
 		for i in range(count - 1):
 			inputs = keras.layers.Dense(units, activation='relu')(inputs)
 		return keras.layers.Dense(last_units)(inputs)
